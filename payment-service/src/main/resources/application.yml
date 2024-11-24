@@ -1,0 +1,153 @@
+server:
+  port: 8083
+
+
+spring:
+  application:
+    name: payment-service
+
+  data:
+    mongodb:
+      uri: mongodb://root:password@localhost:27018/payments?authSource=admin
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    template:
+      default-topic: payment-created
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
+      properties.schema.registry.url: http://localhost:8085
+
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+  observations:
+    key-values:
+      application: payment-service
+  tracing:
+    sampling:
+      probability: 1.0
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      accountExists:
+        registerHealthIndicator: true
+        event-consumer-buffer-size: 10
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        minimum-number-of-calls: 5
+      accountBalance:
+        registerHealthIndicator: true
+        event-consumer-buffer-size: 10
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        minimum-number-of-calls: 5
+      accountCredit:
+        registerHealthIndicator: true
+        event-consumer-buffer-size: 10
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        minimum-number-of-calls: 5
+      accountDebit:
+        registerHealthIndicator: true
+        event-consumer-buffer-size: 10
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        minimum-number-of-calls: 5
+      accountClosed:
+        registerHealthIndicator: true
+        event-consumer-buffer-size: 10
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        minimum-number-of-calls: 5
+
+  timelimiter:
+    instances:
+      accountExists:
+        timeout-duration: 5s
+      accountBalance:
+        timeout-duration: 5s
+      accountCredit:
+        timeout-duration: 5s
+      accountDebit:
+        timeout-duration: 5s
+      accountClosed:
+        timeout-duration: 5s
+
+  retry:
+    instances:
+      accountExists:
+        max-attempts: 3
+        wait-duration: 2s
+      accountBalance:
+        max-attempts: 3
+        wait-duration: 2s
+      accountCredit:
+        max-attempts: 3
+        wait-duration: 2s
+      accountDebit:
+        max-attempts: 3
+        wait-duration: 2s
+      accountClosed:
+        max-attempts: 3
+        wait-duration: 2s
+
+
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+  api-docs:
+    path: /api-docs
+
+stripe:
+  api:
+    key: "sk_test_4eC39HqLyjWDarjtT1zdp7dc"
+
+loki:
+  url: http://localhost:3100/loki/api/v1/push
+
+
+account:
+  service:
+    url: http://localhost:8081
+
+
+

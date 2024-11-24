@@ -1,0 +1,1 @@
+kind create cluster --name microservices-online-banking-system --config kind-config.yaml

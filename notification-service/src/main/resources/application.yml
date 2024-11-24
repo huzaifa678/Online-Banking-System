@@ -1,0 +1,49 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: notification-service
+  kafka:
+    bootstrap-servers: broker.default.svc.cluster.local:9092
+    consumer:
+      group-id: notificationService
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: io.confluent.kafka.serializers.KafkaAvroDeserializer
+      properties:
+        schema.registry.url: http://127.0.0.1:8085
+        specific.avro.reader: true
+    properties:
+      spring.json.type.mapping:
+        - event:com.project.account.event.AccountCreatedEvent
+        - event:com.project.account.event.AccountUpdatedEvent
+        - event:com.project.account.event.AccountClosedEvent
+        - event:com.project.transaction.event.TransactionCreatedEvent
+        - event:com.project.payment.event.PaymentCreatedEvent
+      spring.json.trusted.packages: "com.project.account.event,com.project.transaction.event,com.project.payment.event,java.util,java.lang"
+  mail:
+    host: sandbox.smtp.mailtrap.io
+    port: 2525
+    username: a17da24f1b26dc
+    password: 05eb8af4b09bf6
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+  observations:
+    key-values:
+      application: notification-service
+  tracing:
+    sampling:
+      probability: 1.0
+
+loki:
+  url: http://localhost:3100/loki/api/v1/push

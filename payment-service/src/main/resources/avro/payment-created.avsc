@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "PaymentCreatedEvent",
+  "namespace": "com.project.payment.event",
+  "fields": [
+    {
+      "name": "status",
+      "type": "string"
+    }
+  ]
+}

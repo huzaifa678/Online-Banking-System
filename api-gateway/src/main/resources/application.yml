@@ -1,0 +1,125 @@
+spring:
+  application:
+    name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8181/realms/banking-realm-security
+
+
+user:
+  service:
+    url: http://localhost:8080
+
+account:
+  service:
+    url: http://localhost:8081
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls[0]:
+      name:
+        User Service
+      url: /aggregate/user-service/v3/api-docs
+    urls[1]:
+      name:
+        Account Service
+      url: /aggregate/account-service/v3/api-docs
+    urls[2]:
+      name:
+        Transaction Service
+      url: /aggregate/transaction-service/v3/api-docs
+    urls[3]:
+      name:
+        Payment Service
+      url: /aggregate/payment-service/v3/api-docs
+
+
+
+  api-docs:
+    path: /api-docs
+
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
+    observations:
+      key-values:
+        application: api-gateway
+    tracing:
+      sampling:
+        probability: 1.0
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        minimum-number-of-calls: 5
+
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 20s
+        cancelRunningFuture: true
+
+  retry:
+    configs:
+      default:
+        max-attempts: 1
+        wait-duration: 3s
+
+
+
+transaction:
+  service:
+    url: http://localhost:8082
+
+payment:
+  service:
+    url: http://localhost:8083
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.web: TRACE
+    org.springframework.cloud.gateway: TRACE
+    org.springframework.web.client: TRACE
+    io.github.resilience4j: DEBUG
+    com.project.transaction.service.TransactionService: TRACE
+    com.project.transaction.client.AccountClient: DEBUG
+    com.project.account.client.UserClient: DEBUG
+    com.project.account.service.AccountService: TRACE
+
+
+
+loki:
+  url: http://localhost:3100/loki/api/v1/push
+
+server:
+  port: 9000
+
+
+

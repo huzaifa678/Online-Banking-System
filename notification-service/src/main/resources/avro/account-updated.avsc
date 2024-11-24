@@ -1,0 +1,15 @@
+{
+  "type": "record",
+  "name": "AccountUpdatedEvent",
+  "namespace": "com.project.account.event",
+  "fields": [
+    {
+      "name": "accountId",
+      "type": "string"
+    },
+    {
+      "name": "userEmail",
+      "type": "string"
+    }
+  ]
+}

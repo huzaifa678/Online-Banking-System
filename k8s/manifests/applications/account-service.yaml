@@ -1,0 +1,174 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account-service
+  template:
+    metadata:
+      labels:
+        app: account-service
+    spec:
+      volumes:
+        - name: jdbc-driver-volume
+          emptyDir: { }
+        - name: liquibase-changelog-volume
+          configMap:
+            name: liquibase-changelog-config
+      initContainers:
+        - name: init-jdbc-driver
+          image: curlimages/curl:latest
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              mkdir -p /tmp/jdbc-driver && \
+              curl -L -o /tmp/jdbc-driver/mysql-connector-java.tar.gz https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.30.tar.gz && \
+              tar -xzf /tmp/jdbc-driver/mysql-connector-java.tar.gz -C /tmp/jdbc-driver && \
+              cp /tmp/jdbc-driver/mysql-connector-java-8.0.30/mysql-connector-java-8.0.30.jar /tmp/jdbc-driver/mysql-connector-java.jar
+          volumeMounts:
+            - name: jdbc-driver-volume
+              mountPath: /tmp/jdbc-driver
+        - name: liquibase
+          image: liquibase/liquibase:latest
+          env:
+            - name: LIQUIBASE_COMMAND_URL
+              value: jdbc:mysql://mysql.default.svc.cluster.local:3306/accounts
+            - name: LIQUIBASE_COMMAND_USERNAME
+              value: root
+            - name: LIQUIBASE_COMMAND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-root-password
+            - name: LIQUIBASE_DRIVER
+              value: com.mysql.cj.jdbc.Driver
+          volumeMounts:
+            - name: jdbc-driver-volume
+              mountPath: /liquibase/lib
+            - name: liquibase-changelog-volume
+              mountPath: /liquibase/changelog
+          workingDir: /liquibase/changelog
+          command: [ "liquibase" ]
+          args: [ "--changeLogFile=changelog-master.yaml", "update", "--log-level=debug" ]
+      containers:
+        - name: account-service
+          image: huzaifagill234/new-account-service:latest
+          env:
+            - name: SPRING_DATA_MYSQL_URI
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_DATA_MYSQL_URI
+                  name: account-service-config
+            - name: SPRING_KAFKA_BOOTSTRAP-SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_BOOTSTRAP-SERVERS
+                  name: common-config
+            - name: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
+                  name: account-service-config
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOKI_URL
+                  name: common-config
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+                  name: common-config
+            - name: USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: USER_SERVICE_URL
+                  name: common-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+spec:
+  selector:
+    app: account-service
+  ports:
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: account-service-config
+data:
+  SPRING_DATA_MYSQL_URI: "jdbc:mysql://mysql.default.svc.cluster.local:3306/accounts"
+  SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: "http://schema-registry.default.svc.cluster.local:8081"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liquibase-changelog-config
+data:
+  changelog-master.yaml: |
+    databaseChangeLog:
+      - changeSet:
+          id: 2
+          author: admin
+          preConditions:
+            onFail: MARK_RAN
+            onError: MARK_RAN
+            not:
+              tableExists:
+                tableName: accounts
+          changes:
+            - createTable:
+                tableName: accounts
+                columns:
+                  - column:
+                      name: Account_ID
+                      type: VARCHAR(20)
+                      constraints:
+                        primaryKey: true
+                  - column:
+                      name: Account_Type
+                      type: VARCHAR(50)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: Balance
+                      type: DECIMAL(15, 2)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: Status
+                      type: VARCHAR(20)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: Created_At
+                      type: TIMESTAMP
+                      defaultValueComputed: CURRENT_TIMESTAMP
+                  - column:
+                      name: Updated_At
+                      type: TIMESTAMP
+                      defaultValueComputed: CURRENT_TIMESTAMP
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: User_Email
+                      type: VARCHAR(255)
+                      constraints:
+                        nullable: false
