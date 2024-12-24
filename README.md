@@ -1,5 +1,4 @@
-Here's an improved and more interactive representation for your README:
-
+#Note: Further updates can take place as this project will be improved and developed continiously
 ---
 
 # Online Banking System
