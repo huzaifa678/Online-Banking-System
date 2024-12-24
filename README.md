@@ -54,7 +54,7 @@ Make sure you have the following installed:
     ```
 
 4. **Access the application**:
-    Open your browser and navigate to `http://localhost:3000`
+    Open your browser and navigate to `http://127.0.0.1:3000`
 
 ### Monitoring
 
@@ -66,7 +66,7 @@ To access the monitoring dashboard:
     ```
 
 2. **Open Grafana**:
-    Navigate to `http://localhost:3000` and log in with the default credentials.
+    Navigate to `http://localhost:3001` and log in with the default credentials.
 
 ## Contributing
 
