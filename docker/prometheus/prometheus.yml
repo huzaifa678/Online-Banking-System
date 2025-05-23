@@ -22,7 +22,7 @@ scrape_configs:
         labels:
           application: 'Account Service'
 
-  - job_name: 'transaction-service'
+  - job_name: 'transaction-service.yaml'
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['host.docker.internal:8082']

@@ -1,0 +1,11 @@
+account:
+  service:
+    url: http://localhost:${wiremock.server.port}
+
+
+spring:
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: transactiondb

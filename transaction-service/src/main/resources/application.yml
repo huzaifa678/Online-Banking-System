@@ -7,6 +7,10 @@ spring:
   data:
     mongodb:
       uri: mongodb://root:password@localhost:27017/transactions?authSource=admin
+    redis:
+      host: redis.default.svc.cluster.local
+      port: 6379
+      database: 0
   kafka:
     bootstrap-servers: localhost:9092
     template:
@@ -15,7 +19,11 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: io.confluent.kafka.serializers.KafkaAvroSerializer
       properties.schema.registry.url: http://127.0.0.1:8085
-
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 1 hour in milliseconds
+      cache-null-values: false
 
 springdoc:
   swagger-ui:

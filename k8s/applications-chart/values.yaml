@@ -1,0 +1,94 @@
+# Global values
+global:
+  namespace: default
+
+# API Gateway
+apiGateway:
+  enabled: true
+  image:
+    repository: huzaifagill234/new-api-gateway
+    tag: latest
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+
+# User Service
+userService:
+  enabled: true
+  image:
+    repository: huzaifagill234/new-user-service
+    tag: latest
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+
+# Account Service
+accountService:
+  enabled: true
+  image:
+    repository: huzaifagill234/new-account-service
+    tag: latest
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+
+# Transaction Service
+transactionService:
+  enabled: true
+  image:
+    repository: huzaifagill234/new-transaction-service
+    tag: latest
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+
+# Payment Service
+paymentService:
+  enabled: true
+  image:
+    repository: huzaifagill234/new-payment-service
+    tag: latest
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+
+# Notification Service
+notificationService:
+  enabled: true
+  image:
+    repository: huzaifagill234/new-notification-service
+    tag: latest
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "1Gi"
+
+# Frontend
+frontend:
+  enabled: true
+  image:
+    repository: huzaifagill234/frontend
+    tag: latest

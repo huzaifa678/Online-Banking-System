@@ -6,6 +6,7 @@
 		<groupId>com.project</groupId>
 		<artifactId>online-banking-system</artifactId>
 		<version>1.0-SNAPSHOT</version>
+		<relativePath>../pom.xml</relativePath>
 	</parent>
 
 	<artifactId>user-service</artifactId>
@@ -122,6 +123,12 @@
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>postgresql</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.wiremock</groupId>
+			<artifactId>wiremock</artifactId>
+			<version>3.0.1</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>

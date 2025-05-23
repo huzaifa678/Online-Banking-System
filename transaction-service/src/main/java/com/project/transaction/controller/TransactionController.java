@@ -31,15 +31,21 @@ public class TransactionController {
             TransactionDto dto = transactionService.createTransaction(transactionDto);
             return ResponseEntity.status(HttpStatus.CREATED).body(dto.getTransactionId());
         } catch (InsufficientFundsException e) {
+            log.error("Insufficient funds error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (AccountNotFoundException e) {
+            log.error("Account not found error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (AccountClosedException e) {
+            log.error("Account closed error: {}", e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        } catch (TransactionFailedException e){
+        } catch (TransactionFailedException e) {
+            log.error("Transaction failed error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            log.error("Unexpected error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred");
         }
     }
 
@@ -49,6 +55,8 @@ public class TransactionController {
             TransactionDto transactionDto = transactionService.getTransactionById(id);
             return ResponseEntity.ok(transactionDto);
         } catch (Exception e) {
+            System.out.println("error occured");
+            e.printStackTrace();
             throw new RuntimeException("Could not find the transaction with ID " + id + ": " + e.getMessage(), e);
         }
     }

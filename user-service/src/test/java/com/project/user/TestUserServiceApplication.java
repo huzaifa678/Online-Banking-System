@@ -2,6 +2,8 @@ package com.project.user;
 
 import com.project.user.controller.UsersController;
 import com.project.user.model.Dto.UsersDto;
+import com.project.user.model.Status;
+import com.project.user.service.KeyCloakService;
 import com.project.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -40,6 +43,9 @@ public class TestUserServiceApplication {
     @MockBean
     private UserService userService;
 
+    @MockBean
+    private KeyCloakService keyCloakService;
+
     @LocalServerPort
     private int port;
 
@@ -48,10 +54,8 @@ public class TestUserServiceApplication {
 
     @BeforeEach
     void setUp() {
-        reset(userService);
+        reset(userService, keyCloakService);
     }
-
-
 
     @Test
     void testAddUser() throws Exception {
@@ -62,11 +66,25 @@ public class TestUserServiceApplication {
                 }
                 """;
 
+        UsersDto mockResponse = new UsersDto();
+        mockResponse.setUser_id(1L);
+        mockResponse.setEmail("jake789@example.com");
+        mockResponse.setAddress("washnington, USA");
+        mockResponse.setStatus(Status.APPROVED);
+
+        doNothing().when(keyCloakService).keycloakAddUser(any(UsersDto.class));
+        when(keyCloakService.getUserFromKeycloak(anyString())).thenReturn(null);
+        when(keyCloakService.determineStatusFromKeycloakUser(any())).thenReturn(Status.APPROVED);
+
+        when(userService.addUser(any(UsersDto.class))).thenReturn(mockResponse);
+
         mockMvc.perform(post("/api/users/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(userJson))
                 .andExpect(status().isCreated())
-                .andExpect(content().string("User added successfully!"));
+                .andExpect(content().string("1"));
+
+        verify(userService, times(1)).addUser(any(UsersDto.class));
     }
 
     @Test

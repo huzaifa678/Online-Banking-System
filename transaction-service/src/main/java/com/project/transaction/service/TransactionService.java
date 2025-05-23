@@ -4,6 +4,7 @@ import com.project.transaction.event.TransactionCreatedEvent;
 import com.project.transaction.exceptions.AccountClosedException;
 import com.project.transaction.exceptions.AccountNotFoundException;
 import com.project.transaction.exceptions.InsufficientFundsException;
+import com.project.transaction.exceptions.TransactionFailedException;
 import com.project.transaction.model.Status;
 import com.project.transaction.model.TransactionTypes;
 import com.project.transaction.model.document.Transaction;
@@ -12,6 +13,8 @@ import com.project.transaction.model.mapper.TransactionMapper;
 import com.project.transaction.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +42,7 @@ public class TransactionService {
 
     private final KafkaTemplate<String, TransactionCreatedEvent> kafkaTemplate;
 
+    @CacheEvict(value = "transactions", allEntries = true)
     public TransactionDto createTransaction(TransactionDto transactionDto) throws ConnectException {
         String sourceAccountId = transactionDto.getSource_accountId();
         String destinationAccountId = transactionDto.getDestination_accountId();
@@ -52,7 +56,7 @@ public class TransactionService {
         if (type == TransactionTypes.TRANSFER || type == TransactionTypes.WITHDRAWAL) {
             if (!accountClient.doesAccountExists(sourceAccountId)) {
                 transactionDto.setTransactionStatus(Status.FAILED);
-                throw new RuntimeException("The source Account with ID: " + sourceAccountId + " does not exist");
+                throw new AccountNotFoundException("The source Account with ID: " + sourceAccountId + " does not exist");
             }
 
             if (!accountClient.accountBalance(sourceAccountId, amount)) {
@@ -66,50 +70,53 @@ public class TransactionService {
             }
         }
         if (type == TransactionTypes.TRANSFER || type == TransactionTypes.DEPOSIT) {
-            if (!accountClient.doesAccountExists(sourceAccountId)) {
-                if (sourceAccountId == null) {
-                    transactionDto.setTransactionStatus(Status.FAILED);
-                    throw new AccountNotFoundException("The destination Account with ID: " + destinationAccountId + " does not exist");
-                }
+            if (!accountClient.doesAccountExists(destinationAccountId)) {
+                transactionDto.setTransactionStatus(Status.FAILED);
+                throw new AccountNotFoundException("The destination Account with ID: " + destinationAccountId + " does not exist");
             }
 
-            if (accountClient.isAccountClosed(sourceAccountId)) {
+            if (accountClient.isAccountClosed(destinationAccountId)) {
                 transactionDto.setTransactionStatus(Status.CANCELLED);
                 throw new AccountClosedException("The destination Account with ID: " + destinationAccountId + " is closed");
             }
         }
 
-        switch (type) {
-            case DEPOSIT:
-                accountClient.debitAccountBalance(amount, sourceAccountId);
-                break;
-            case WITHDRAWAL:
-                accountClient.creditAccountBalance(amount, sourceAccountId);
-                break;
-            case TRANSFER:
-                accountClient.debitAccountBalance(amount, sourceAccountId);
-                accountClient.creditAccountBalance(amount, destinationAccountId);
-                break;
-            default:
-                throw new IllegalArgumentException("Invalid transaction type: " + type);
+        try {
+            switch (type) {
+                case DEPOSIT:
+                    accountClient.debitAccountBalance(amount, sourceAccountId);
+                    break;
+                case WITHDRAWAL:
+                    accountClient.creditAccountBalance(amount, sourceAccountId);
+                    break;
+                case TRANSFER:
+                    accountClient.debitAccountBalance(amount, sourceAccountId);
+                    accountClient.creditAccountBalance(amount, destinationAccountId);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Invalid transaction type: " + type);
+            }
+
+            transactionDto.setTransactionStatus(Status.COMPLETED);
+            Transaction transaction = transactionMapper.ConvertToDocument(transactionDto);
+            Transaction savedTransaction = transactionRepository.save(transaction);
+
+            String status = transaction.getTransactionStatus().toString();
+
+            TransactionCreatedEvent transactionCreatedEvent = new TransactionCreatedEvent();
+            transactionCreatedEvent.setStatus(status);
+            log.info("Started sending TransactionCreatedEvent {} to kafka topic transaction-created", transactionCreatedEvent);
+            kafkaTemplate.send("transaction-created", transactionCreatedEvent);
+            log.info("Ended sending TransactionCreatedEvent {} to kafka topic transaction-created", transactionCreatedEvent);
+
+            return transactionMapper.ConvertToDto(savedTransaction);
+        } catch (Exception e) {
+            transactionDto.setTransactionStatus(Status.FAILED);
+            throw new TransactionFailedException("Transaction failed: " + e.getMessage(), e);
         }
-
-        transactionDto.setTransactionStatus(Status.COMPLETED);
-        Transaction transaction = transactionMapper.ConvertToDocument(transactionDto);
-        Transaction savedTransaction = transactionRepository.save(transaction);
-
-        String status = transaction.getTransactionStatus().toString();
-
-        TransactionCreatedEvent transactionCreatedEvent = new TransactionCreatedEvent();
-        transactionCreatedEvent.setStatus(status);
-        log.info("Started sending TransactionCreatedEvent {} to kafka topic transaction-created", transactionCreatedEvent);
-        kafkaTemplate.send("transaction-created", transactionCreatedEvent);
-        log.info("Ended sending TransactionCreatedEvent {} to kafka topic transaction-created", transactionCreatedEvent);
-
-        return transactionMapper.ConvertToDto(savedTransaction);
     }
 
-
+    @Cacheable(value = "transactions", key = "#transactionId", unless = "#result == null")
     public TransactionDto getTransactionById(String transactionId) {
         Optional<Transaction> transactionOptional = transactionRepository.findById(transactionId);
 
@@ -122,15 +129,12 @@ public class TransactionService {
         } catch (Exception e) {
             throw new RuntimeException("Failed to find the transaction ID: " + transactionId + "error occurred: " + e);
         }
-
     }
 
+    @Cacheable(value = "allTransactions")
     public List<TransactionDto> getAllTransactions() {
         return transactionRepository.findAll().stream()
                 .map(transactionMapper::ConvertToDto)
                 .collect(Collectors.toList());
     }
-
-
-
 }

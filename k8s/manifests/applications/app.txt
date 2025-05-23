@@ -1,0 +1,652 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: account-service
+  template:
+    metadata:
+      labels:
+        app: account-service
+    spec:
+      volumes:
+        - name: jdbc-driver-volume
+          emptyDir: { }
+        - name: liquibase-changelog-volume
+          configMap:
+            name: liquibase-changelog-config
+      initContainers:
+        - name: init-jdbc-driver
+          image: curlimages/curl:latest
+          command: [ "/bin/sh", "-c" ]
+          args:
+            - |
+              mkdir -p /tmp/jdbc-driver && \
+              curl -L -o /tmp/jdbc-driver/mysql-connector-java.tar.gz https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.30.tar.gz && \
+              tar -xzf /tmp/jdbc-driver/mysql-connector-java.tar.gz -C /tmp/jdbc-driver && \
+              cp /tmp/jdbc-driver/mysql-connector-java-8.0.30/mysql-connector-java-8.0.30.jar /tmp/jdbc-driver/mysql-connector-java.jar
+          volumeMounts:
+            - name: jdbc-driver-volume
+              mountPath: /tmp/jdbc-driver
+        - name: liquibase
+          image: liquibase/liquibase:latest
+          env:
+            - name: LIQUIBASE_COMMAND_URL
+              value: jdbc:mysql://mysql.default.svc.cluster.local:3306/accounts
+            - name: LIQUIBASE_COMMAND_USERNAME
+              value: root
+            - name: LIQUIBASE_COMMAND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: mysql-root-password
+            - name: LIQUIBASE_DRIVER
+              value: com.mysql.cj.jdbc.Driver
+          volumeMounts:
+            - name: jdbc-driver-volume
+              mountPath: /liquibase/lib
+            - name: liquibase-changelog-volume
+              mountPath: /liquibase/changelog
+          workingDir: /liquibase/changelog
+          command: [ "liquibase" ]
+          args: [ "--changeLogFile=changelog-master.yaml", "update", "--log-level=debug" ]
+      containers:
+        - name: account-service
+          image: huzaifagill234/new-account-service:latest
+          env:
+            - name: SPRING_DATA_MYSQL_URI
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_DATA_MYSQL_URI
+                  name: account-service-config
+            - name: SPRING_KAFKA_BOOTSTRAP-SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_BOOTSTRAP-SERVERS
+                  name: common-config
+            - name: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
+                  name: account-service-config
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOKI_URL
+                  name: common-config
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+                  name: common-config
+            - name: USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: USER_SERVICE_URL
+                  name: common-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+spec:
+  selector:
+    app: account-service
+  ports:
+    - protocol: TCP
+      port: 8081
+      targetPort: 8081
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: account-service-config
+data:
+  SPRING_DATA_MYSQL_URI: "jdbc:mysql://mysql.default.svc.cluster.local:3306/accounts"
+  SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: "http://schema-registry.default.svc.cluster.local:8081"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liquibase-changelog-config
+data:
+  changelog-master.yaml: |
+    databaseChangeLog:
+      - changeSet:
+          id: 2
+          author: admin
+          preConditions:
+            onFail: MARK_RAN
+            onError: MARK_RAN
+            not:
+              tableExists:
+                tableName: accounts
+          changes:
+            - createTable:
+                tableName: accounts
+                columns:
+                  - column:
+                      name: Account_ID
+                      type: VARCHAR(20)
+                      constraints:
+                        primaryKey: true
+                  - column:
+                      name: Account_Type
+                      type: VARCHAR(50)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: Balance
+                      type: DECIMAL(15, 2)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: Status
+                      type: VARCHAR(20)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: Created_At
+                      type: TIMESTAMP
+                      defaultValueComputed: CURRENT_TIMESTAMP
+                  - column:
+                      name: Updated_At
+                      type: TIMESTAMP
+                      defaultValueComputed: CURRENT_TIMESTAMP
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: User_Email
+                      type: VARCHAR(255)
+                      constraints:
+                        nullable: falseapiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+        - name: api-gateway
+          image: huzaifagill234/new-api-gateway:latest
+          ports:
+            - containerPort: 9000
+          env:
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER-URI
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER-URI
+                  name: api-gateway-config
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOKI_URL
+                  name: common-config
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+                  name: common-config
+            - name: USER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: USER_SERVICE_URL
+                  name: common-config
+            - name: ACCOUNT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: ACCOUNT_SERVICE_URL
+                  name: common-config
+            - name: TRANSACTION_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: TRANSACTION_SERVICE_URL
+                  name: common-config
+            - name: PAYMENT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: PAYMENT_SERVICE_URL
+                  name: common-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+spec:
+  selector:
+    app: api-gateway
+  ports:
+    - protocol: TCP
+      port: 9000
+      targetPort: 9000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+data:
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER-URI: "http://keycloak.default.svc.cluster.local:8080/realms/banking-realm-security"---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: common-config
+data:
+  LOKI_URL: "http://loki.default.svc.cluster.local:3100/loki/api/v1/push"
+  MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: "http://tempo.default.svc.cluster.local:9411"
+  SPRING_KAFKA_BOOTSTRAP-SERVERS: "broker.default.svc.cluster.local:29092"
+  USER_SERVICE_URL: "http://user-service.default.svc.cluster.local:8080"
+  ACCOUNT_SERVICE_URL: "http://account-service.default.svc.cluster.local:8081"
+  TRANSACTION_SERVICE_URL: "http://transaction-service.default.svc.cluster.local:8082"
+  PAYMENT_SERVICE_URL: "http://payment-service.default.svc.cluster.local:8083"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: huzaifagill234/frontend:latest
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: huzaifagill234/new-notification-service:latest
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP-SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_BOOTSTRAP-SERVERS
+                  name: common-config
+            - name: SPRING_KAFKA_CONSUMER_PROPERTIES_SCHEMA_REGISTRY_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_CONSUMER_PROPERTIES_SCHEMA_REGISTRY_URL
+                  name: notification-service-config
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOKI_URL
+                  name: common-config
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+                  name: common-config
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+spec:
+  selector:
+    app: notification-service
+  ports:
+    - protocol: TCP
+      port: 8084
+      targetPort: 8084
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notification-service-config
+data:
+  SPRING_KAFKA_CONSUMER_PROPERTIES_SCHEMA_REGISTRY_URL: "http://schema-registry.default.svc.cluster.local:8081"apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+        - name: payment-service
+          image: huzaifagill234/new-payment-service:latest
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_DATA_MONGODB_URI
+                  name: payment-service-config
+            - name: SPRING_KAFKA_BOOTSTRAP-SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_BOOTSTRAP-SERVERS
+                  name: common-config
+            - name: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
+                  name: payment-service-config
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOKI_URL
+                  name: common-config
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+                  name: common-config
+            - name: ACCOUNT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: ACCOUNT_SERVICE_URL
+                  name: common-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+spec:
+  selector:
+    app: payment-service
+  ports:
+    - protocol: TCP
+      port: 8083
+      targetPort: 8083
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-config
+data:
+  SPRING_DATA_MONGODB_URI: "mongodb://root:password@mongodb-payment.default.svc.cluster.local:27018/payments?authSource=admin"
+  SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: "http://schema-registry.default.svc.cluster.local:8081"apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transaction-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: transaction-service
+  template:
+    metadata:
+      labels:
+        app: transaction-service
+    spec:
+      containers:
+        - name: transaction-service
+          image: huzaifagill234/new-transaction-service:latest
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_DATA_MONGODB_URI
+                  name: transaction-service-config
+            - name: SPRING_KAFKA_BOOTSTRAP-SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_BOOTSTRAP-SERVERS
+                  name: common-config
+            - name: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
+                  name: transaction-service-config
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOKI_URL
+                  name: common-config
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+                  name: common-config
+            - name: ACCOUNT_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: ACCOUNT_SERVICE_URL
+                  name: common-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaction-service
+spec:
+  selector:
+    app: transaction-service
+  ports:
+    - protocol: TCP
+      port: 8082
+      targetPort: 8082
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: transaction-service-config
+data:
+  SPRING_DATA_MONGODB_URI: "mongodb://root:password@mongodb-transaction.default.svc.cluster.local:27017/transactions?authSource=admin"
+  SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: "http://schema-registry.default.svc.cluster.local:8081"apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+
+      initContainers:
+        - name: liquibase
+          image: liquibase/liquibase:latest
+          env:
+            - name: LIQUIBASE_COMMAND_URL
+              value: jdbc:postgresql://postgres.default.svc.cluster.local:5432/users
+            - name: LIQUIBASE_COMMAND_USERNAME
+              value: postgres
+            - name: LIQUIBASE_COMMAND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-password
+            - name: LIQUIBASE_CLASSPATH
+              value: /liquibase/changelog
+            - name: KEYCLOAK_AUTH_SERVER_URL
+              value: "http://keycloak.default.svc.cluster.local:8080"
+            - name: KEYCLOAK_REALM
+              value: "banking-realm-security"
+            - name: KEYCLOAK_RESOURCE
+              value: "api-client"
+            - name: KEYCLOAK_CREDENTIALS_SECRET
+              value: "olF3KVvGYw2RSEFUBnXAanzwq4vlpPlY"
+          volumeMounts:
+            - name: liquibase-changelog
+              mountPath: /liquibase/changelog
+            - name: jdbc-driver-volume
+              mountPath: /tmp/jdbc-driver
+          command: [ "liquibase" ]
+          args: [ "--changelog-file=changelog-master.yaml", "update", "--log-level=debug" ]
+      volumes:
+        - name: liquibase-changelog
+          configMap:
+           name: liquibase-changelog-config
+        - name: jdbc-driver-volume
+          emptyDir: { }
+
+      containers:
+        - name: user-service
+          image: huzaifagill234/new-user-service:latest
+          env:
+            - name: SPRING_DATA_POSTGRES_URI
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_DATA_POSTGRES_URI
+                  name: user-service-config
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOKI_URL
+                  name: common-config
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+                  name: common-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+data:
+  SPRING_DATA_POSTGRES_URI: "jdbc:postgresql://postgres.default.svc.cluster.local:5432/users"
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liquibase-changelog-config
+data:
+  changelog-master.yaml: |
+    databaseChangeLog:
+      - changeSet:
+          id: 1
+          author: admin
+          changes:
+            - createTable:
+                tableName: users
+                ifNotExists: true
+                columns:
+                  - column:
+                      name: user_id
+                      type: SERIAL
+                      constraints:
+                        primaryKey: true
+                        nullable: false
+                  - column:
+                      name: email
+                      type: VARCHAR(255)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: address
+                      type: VARCHAR(255)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: created_at
+                      type: DATE
+                      defaultValueComputed: CURRENT_DATE
+                  - column:
+                      name: updated_at
+                      type: DATE
+                      defaultValueComputed: CURRENT_DATE
+                  - column:
+                      name: status
+                      type: VARCHAR(50)
+                      constraints:
+                        nullable: false

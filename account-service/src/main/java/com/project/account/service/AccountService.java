@@ -27,10 +27,10 @@ import java.util.stream.Collectors;
 public class AccountService {
 
     @Autowired
-    private final AccountRepository accountRepository;
+    private AccountRepository accountRepository;
 
     @Autowired
-    private final AccountMapper accountMapper;
+    private AccountMapper accountMapper;
 
     private final UserClient userClient;
 

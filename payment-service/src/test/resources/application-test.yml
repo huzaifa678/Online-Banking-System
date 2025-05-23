@@ -1,0 +1,22 @@
+account:
+  service:
+    url: http://localhost:${wiremock:server:port}
+
+stripe:
+  api:
+    key: sk_test_51RProu4dWuzF8mxlOxWlK4YHCJ6M8LfNSSggvjdbxyDkzgL3AxSnQnHQTVy2JQUjHwo9Mj9SF63cuOj38SWJESrO00NXkoo5OY
+
+spring:
+  data:
+    mongodb:
+      uri: ${spring.data.mongodb.uri}
+      database: payment_test
+    redis:
+      host: localhost
+      port: ${redis.port}
+      database: 0
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
