@@ -124,51 +124,58 @@ metadata:
 data:
   changelog-master.yaml: |
     databaseChangeLog:
-      - changeSet:
-          id: 2
-          author: admin
-          preConditions:
-            onFail: MARK_RAN
-            onError: MARK_RAN
-            not:
-              tableExists:
-                tableName: accounts
-          changes:
-            - createTable:
-                tableName: accounts
-                columns:
-                  - column:
-                      name: Account_ID
-                      type: VARCHAR(20)
-                      constraints:
-                        primaryKey: true
-                  - column:
-                      name: Account_Type
-                      type: VARCHAR(50)
-                      constraints:
-                        nullable: false
-                  - column:
-                      name: Balance
-                      type: DECIMAL(15, 2)
-                      constraints:
-                        nullable: false
-                  - column:
-                      name: Status
-                      type: VARCHAR(20)
-                      constraints:
-                        nullable: false
-                  - column:
-                      name: Created_At
-                      type: TIMESTAMP
-                      defaultValueComputed: CURRENT_TIMESTAMP
-                  - column:
-                      name: Updated_At
-                      type: TIMESTAMP
-                      defaultValueComputed: CURRENT_TIMESTAMP
-                      constraints:
-                        nullable: false
-                  - column:
-                      name: User_Email
-                      type: VARCHAR(255)
-                      constraints:
-                        nullable: false
+    - changeSet:
+        id: 2
+        author: admin
+        preConditions:
+          onFail: MARK_RAN
+          onError: MARK_RAN
+          not:
+            tableExists:
+              tableName: accounts
+        changes:
+          - createTable:
+              tableName: accounts
+              columns:
+                - column:
+                    name: Account_ID
+                    type: VARCHAR(20)
+                    constraints:
+                      primaryKey: true
+                - column:
+                    name: Account_Type
+                    type: VARCHAR(50)
+                    constraints:
+                      nullable: false
+                - column:
+                    name: Balance
+                    type: DECIMAL(15, 2)
+                    constraints:
+                      nullable: false
+                - column:
+                    name: Status
+                    type: VARCHAR(20)
+                    constraints:
+                      nullable: false
+                - column:
+                    name: Created_At
+                    type: TIMESTAMP
+                    defaultValueComputed: CURRENT_TIMESTAMP
+                    constraints:
+                      nullable: false
+                - column:
+                    name: Updated_At
+                    type: TIMESTAMP
+                    constraints:
+                      nullable: false
+                - column:
+                    name: User_Email
+                    type: VARCHAR(255)
+                    constraints:
+                      nullable: false
+          - modifySql:
+              dbms: mysql
+              applyToRollback: false
+              value: |
+                ALTER TABLE accounts 
+                MODIFY Updated_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;

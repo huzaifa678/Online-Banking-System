@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+
+      initContainers:
+        - name: liquibase
+          image: liquibase/liquibase:latest
+          env:
+            - name: LIQUIBASE_COMMAND_URL
+              value: jdbc:postgresql://postgres.{{ .Release.Namespace }}.svc.cluster.local:5432/users
+            - name: LIQUIBASE_COMMAND_USERNAME
+              value: postgres
+            - name: LIQUIBASE_COMMAND_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: postgres-password
+            - name: LIQUIBASE_CLASSPATH
+              value: /liquibase/changelog
+            - name: KEYCLOAK_AUTH_SERVER_URL
+              value: "http://keycloak.{{ .Release.Namespace }}.svc.cluster.local:8080"
+            - name: KEYCLOAK_REALM
+              value: "banking-realm-security"
+            - name: KEYCLOAK_RESOURCE
+              value: "api-client"
+            - name: KEYCLOAK_CREDENTIALS_SECRET
+              value: "olF3KVvGYw2RSEFUBnXAanzwq4vlpPlY"
+          volumeMounts:
+            - name: liquibase-changelog
+              mountPath: /liquibase/changelog
+            - name: jdbc-driver-volume
+              mountPath: /tmp/jdbc-driver
+          command: [ "liquibase" ]
+          args: [ "--changelog-file=changelog-master.yaml", "update", "--log-level=debug" ]
+      volumes:
+        - name: liquibase-changelog
+          configMap:
+            name: liquibase-changelog-config
+        - name: jdbc-driver-volume
+          emptyDir: { }
+
+      containers:
+        - name: user-service
+          image: "{{ .Values.userService.image.repository }}:{{ .Values.userService.image.tag }}"
+          env:
+            - name: SPRING_DATA_POSTGRES_URI
+              valueFrom:
+                configMapKeyRef:
+                  key: SPRING_DATA_POSTGRES_URI
+                  name: user-service-config
+            - name: LOKI_URL
+              valueFrom:
+                configMapKeyRef:
+                  key: LOKI_URL
+                  name: common-config
+            - name: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  key: MANAGEMENT_ZIPKIN_TRACING_ENDPOINT
+                  name: common-config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+spec:
+  selector:
+    app: user-service
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: user-service-config
+data:
+  SPRING_DATA_POSTGRES_URI: "jdbc:postgresql://postgres.{{ .Release.Namespace }}.svc.cluster.local:5432/users"
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: liquibase-changelog-config
+data:
+  changelog-master.yaml: |
+    databaseChangeLog:
+      - changeSet:
+          id: 1
+          author: admin
+          changes:
+            - createTable:
+                tableName: users
+                ifNotExists: true
+                columns:
+                  - column:
+                      name: user_id
+                      type: SERIAL
+                      constraints:
+                        primaryKey: true
+                        nullable: false
+                  - column:
+                      name: email
+                      type: VARCHAR(255)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: address
+                      type: VARCHAR(255)
+                      constraints:
+                        nullable: false
+                  - column:
+                      name: created_at
+                      type: DATE
+                      defaultValueComputed: CURRENT_DATE
+                  - column:
+                      name: updated_at
+                      type: DATE
+                      defaultValueComputed: CURRENT_DATE
+                  - column:
+                      name: status
+                      type: VARCHAR(50)
+                      constraints:
+                        nullable: false

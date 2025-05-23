@@ -1,0 +1,9 @@
+account:
+  service:
+    url: http://localhost:${wiremock:server:port}
+
+
+stipe:
+  api:
+    key:
+      "sk_test_51RProu4dWuzF8mxlOxWlK4YHCJ6M8LfNSSggvjdbxyDkzgL3AxSnQnHQTVy2JQUjHwo9Mj9SF63cuOj38SWJESrO00NXkoo5OY"

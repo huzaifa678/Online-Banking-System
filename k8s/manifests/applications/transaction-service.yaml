@@ -1,26 +1,26 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: transaction-service
+  name: transaction-service.yaml
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: transaction-service
+      app: transaction-service.yaml
   template:
     metadata:
       labels:
-        app: transaction-service
+        app: transaction-service.yaml
     spec:
       containers:
-        - name: transaction-service
-          image: huzaifagill234/new-transaction-service:latest
+        - name: transaction-service.yaml
+          image: huzaifagill234/new-transaction-service.yaml:latest
           env:
             - name: SPRING_DATA_MONGODB_URI
               valueFrom:
                 configMapKeyRef:
                   key: SPRING_DATA_MONGODB_URI
-                  name: transaction-service-config
+                  name: transaction-service.yaml-config
             - name: SPRING_KAFKA_BOOTSTRAP-SERVERS
               valueFrom:
                 configMapKeyRef:
@@ -30,7 +30,7 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   key: SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL
-                  name: transaction-service-config
+                  name: transaction-service.yaml-config
             - name: LOKI_URL
               valueFrom:
                 configMapKeyRef:
@@ -57,10 +57,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: transaction-service
+  name: transaction-service.yaml
 spec:
   selector:
-    app: transaction-service
+    app: transaction-service.yaml
   ports:
     - protocol: TCP
       port: 8082
@@ -69,7 +69,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: transaction-service-config
+  name: transaction-service.yaml-config
 data:
   SPRING_DATA_MONGODB_URI: "mongodb://root:password@mongodb-transaction.default.svc.cluster.local:27017/transactions?authSource=admin"
   SPRING_KAFKA_PRODUCER_PROPERTIES_SCHEMA_REGISTRY_URL: "http://schema-registry.default.svc.cluster.local:8081"

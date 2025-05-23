@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { UserManager } from 'oidc-client';
-import oidcConfig from '../auth/auth.config'; // Adjust the path as needed
+import oidcConfig from '../auth/auth.config';
 
 const CallbackPage: React.FC = () => {
   useEffect(() => {

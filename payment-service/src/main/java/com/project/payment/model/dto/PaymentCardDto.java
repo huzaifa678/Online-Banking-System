@@ -1,14 +1,19 @@
 package com.project.payment.model.dto;
+
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-@Builder
-public class PaymentCardDto {
+@AllArgsConstructor
+@JsonTypeName("PaymentCardDto")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@type")
+public class PaymentCardDto implements Serializable {
     private PaymentDto paymentDto;
-    private CardDto cardDto;
+    private String paymentMethodId;
 }

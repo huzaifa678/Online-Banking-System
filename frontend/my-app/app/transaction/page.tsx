@@ -38,9 +38,11 @@ const TransactionPage: React.FC = () => {
         const id = res.data.toString();
         console.log('Transaction created with ID:', id);
         setCreatedTransactionId(id);
+        console.log('Transaction dto:', res.data)
         toast.success('Transaction created successfully!');
       })
       .catch((error) => {
+        console.log("error:", error)
         toast.error("There was a problem with creating the transaction");
       });
   };
@@ -49,7 +51,9 @@ const TransactionPage: React.FC = () => {
     event.preventDefault();
     axiosInstance.get(`http://localhost:9000/api/transaction/${createdTransactionId}`)
       .then((res) => {
+        console.log('Transaction Data:', res.data);
         setTransactionDetails(res.data);
+        setTransactionType(res.data.transactionType)
       })
       .catch((error) => {
         toast.error("There was a problem with fetching the transaction");

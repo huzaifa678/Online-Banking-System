@@ -35,6 +35,7 @@ public class TransactionMapper extends BaseMapper<Transaction, TransactionDto> {
                 .destination_accountId(document.getDestination_accountId())
                 .amount(document.getAmount())
                 .transactionStatus(document.getTransactionStatus())
+                .transactionType(document.getTransactionType())
                 .build();
     }
 }

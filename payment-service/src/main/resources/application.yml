@@ -9,6 +9,15 @@ spring:
   data:
     mongodb:
       uri: mongodb://root:password@localhost:27018/payments?authSource=admin
+    redis:
+      host: redis.default.svc.cluster.local
+      port: 6379
+      database: 1
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000 # 1 hour in milliseconds
+      cache-null-values: false
 
   kafka:
     bootstrap-servers: localhost:9092
@@ -139,7 +148,7 @@ springdoc:
 
 stripe:
   api:
-    key: "sk_test_4eC39HqLyjWDarjtT1zdp7dc"
+    key: "sk_test_51RProu4dWuzF8mxlOxWlK4YHCJ6M8LfNSSggvjdbxyDkzgL3AxSnQnHQTVy2JQUjHwo9Mj9SF63cuOj38SWJESrO00NXkoo5OY"
 
 loki:
   url: http://localhost:3100/loki/api/v1/push

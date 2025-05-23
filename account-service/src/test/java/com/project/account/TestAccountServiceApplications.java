@@ -1,28 +1,58 @@
 package com.project.account;
 
 import com.github.tomakehurst.wiremock.admin.model.ListStubMappingsResult;
+import com.project.account.config.TestKafkaConfig;
 import com.project.account.stubs.UserStub;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.containers.KafkaContainer;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.testcontainers.containers.Network;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.DockerImageName;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 
-
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Properties;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWireMock(port = 0)
+@Import(TestKafkaConfig.class)
+@ActiveProfiles("test")
 public class TestAccountServiceApplications {
 
     @ServiceConnection
     static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.3.0");
+
+    static KafkaContainer kafkaContainer = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.2.1"))
+            .waitingFor(Wait.forLogMessage(".*started.*\\n", 1))
+            .withEmbeddedZookeeper();
+
+    @DynamicPropertySource
+    static void kafkaProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.kafka.bootstrap-servers", kafkaContainer::getBootstrapServers);
+    }
 
     @LocalServerPort
     private int port;
@@ -30,28 +60,64 @@ public class TestAccountServiceApplications {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private KafkaTemplate<String, Object> kafkaTemplate;
+
+    private KafkaConsumer<String, String> consumer;
+
+    @BeforeAll
+    static void beforeAll() {
+        mysqlContainer.start();
+        kafkaContainer.start();
+    }
+
+    @AfterAll
+    static void afterAll() {
+        if (mysqlContainer.isRunning()) {
+            mysqlContainer.stop();
+        }
+        if (kafkaContainer.isRunning()) {
+            kafkaContainer.stop();
+        }
+    }
 
     @BeforeEach
     public void createSchemaAndTable() {
-        jdbcTemplate.execute("CREATE SCHEMA IF NOT EXISTS test;");
-        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS test.accounts (" +
-                "account_id VARCHAR(20) PRIMARY KEY, " +
-                "user_email VARCHAR(255) NOT NULL, " +
-                "account_type VARCHAR(50) NOT NULL, " +
-                "balance DECIMAL(15, 2), " +
-                "status VARCHAR(20), " +
-                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
-                "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);");
+        try {
+            jdbcTemplate.execute("CREATE SCHEMA IF NOT EXISTS test;");
+            jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS test.accounts (" +
+                    "account_id VARCHAR(20) PRIMARY KEY, " +
+                    "user_email VARCHAR(255) NOT NULL, " +
+                    "account_type VARCHAR(50) NOT NULL, " +
+                    "balance DECIMAL(15, 2), " +
+                    "status VARCHAR(20), " +
+                    "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, " +
+                    "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);");
+        } catch (Exception e) {
+            System.err.println("Error creating schema/table: " + e.getMessage());
+            throw e;
+        }
     }
 
     @BeforeEach
     void setUp() {
         RestAssured.baseURI = "http://localhost";
         RestAssured.port = port;
+
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaContainer.getBootstrapServers());
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "test-group");
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        consumer = new KafkaConsumer<>(props);
     }
 
-    static {
-        mysqlContainer.start();
+    @AfterEach
+    void tearDown() {
+        if (consumer != null) {
+            consumer.close();
+        }
     }
 
     @Test
@@ -168,17 +234,36 @@ public class TestAccountServiceApplications {
 
     @Test
     public void testCloseAccount_Success() {
-
         jdbcTemplate.execute("INSERT INTO test.accounts (account_id, user_email, account_type, balance, status) " +
                 "VALUES ('4', 'user123@example.com', 'SAVINGS', 1000.00, 'ACTIVE');");
 
+        String accountJson = """
+                {
+                    "account_Id": 4,
+                    "userEmail": "user123@example.com",
+                    "accountType": "SAVINGS",
+                    "balance": 1000.00,
+                    "status": "ACTIVE"
+                }
+                """;
+
+        // Subscribe to the topic before making the request
+        consumer.subscribe(Collections.singletonList("account-closed"));
+
         RestAssured.given()
+                .contentType(ContentType.JSON)
+                .body(accountJson)
+                .log().all()
                 .when()
                 .put("/api/accounts/close/4")
                 .then()
-                .statusCode(200)
-                .log().all();
+                .log().all()
+                .statusCode(200);
 
+        // Verify the message was sent to Kafka
+        ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(5));
+        assertNotNull(records, "No records received from Kafka");
+        assertNotNull(records.records("account-closed"), "No records found in account-closed topic");
     }
 
     @Test
@@ -328,12 +413,12 @@ public class TestAccountServiceApplications {
 
 
         RestAssured.given()
-                        .contentType(ContentType.JSON)
-                        .when()
-                        .get("/api/accounts/11")
-                        .then()
-                        .statusCode(200)
-                        .log().all();
+                .contentType(ContentType.JSON)
+                .when()
+                .get("/api/accounts/11")
+                .then()
+                .statusCode(200)
+                .log().all();
     }
 
     @Test

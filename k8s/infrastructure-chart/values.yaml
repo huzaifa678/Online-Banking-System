@@ -1,0 +1,103 @@
+# Global values
+global:
+  namespace: default
+
+# Monitoring
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: latest
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+
+prometheus:
+  enabled: true
+  image:
+    repository: prom/prometheus
+    tag: v2.54.1
+
+loki:
+  enabled: true
+  image:
+    repository: grafana/loki
+    tag: main
+
+tempo:
+  enabled: true
+  image:
+    repository: grafana/tempo
+    tag: latest
+
+# Databases
+mysql:
+  enabled: true
+  image:
+    repository: mysql
+    tag: 8.3.0
+  storage: 1Gi
+
+postgres:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16.3
+  storage: 1Gi
+
+mongodb:
+  transaction:
+    enabled: true
+    image:
+      repository: mongo
+      tag: latest
+    storage: 1Gi
+  payment:
+    enabled: true
+    image:
+      repository: mongo
+      tag: latest
+    storage: 1Gi
+
+# Messaging
+zookeeper:
+  enabled: true
+  image:
+    repository: confluentinc/cp-zookeeper
+    tag: 7.5.0
+
+broker:
+  enabled: true
+  image:
+    repository: confluentinc/cp-kafka
+    tag: 7.5.0
+
+schemaRegistry:
+  enabled: true
+  image:
+    repository: confluentinc/cp-schema-registry
+    tag: 7.5.0
+
+kafkaUI:
+  enabled: true
+  image:
+    repository: provectuslabs/kafka-ui
+    tag: latest
+
+# Authentication
+keycloak:
+  enabled: true
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: 24.0.1
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"

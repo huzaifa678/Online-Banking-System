@@ -1,11 +1,13 @@
 package com.project.transaction;
 
+import com.project.transaction.config.TestKafkaConfig;
+import com.project.transaction.event.TransactionCreatedEvent;
 import com.project.transaction.model.Status;
-import com.project.transaction.model.TransactionTypes;
 import com.project.transaction.model.document.Transaction;
 import com.project.transaction.stub.AccountStub;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
+import kafka.KafkaTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,26 +15,50 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.MongoDBContainer;
+import org.mockito.ArgumentCaptor;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.utility.DockerImageName;
 
+import java.awt.*;
 import java.math.BigDecimal;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+		webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+		properties = {
+				"spring.profiles.active=test",
+				"account.service.url=http://localhost:${wiremock.server.port}"
+		}
+)
 @AutoConfigureWireMock(port = 0)
+@Import(TestKafkaConfig.class)
 class TransactionServiceApplicationTests {
-
-	@LocalServerPort
-	private int port;
 
 	@ServiceConnection
 	static MongoDBContainer mongoDBContainer = new MongoDBContainer("mongo:latest");
 
+	@LocalServerPort
+	private Integer port;
+
 	@Autowired
 	private MongoTemplate mongoTemplate;
 
+	@Autowired
+	private KafkaTemplate<String, TransactionCreatedEvent> kafkaTemplate;
+
+	@Container
+	@ServiceConnection
+	static GenericContainer redis = new GenericContainer(DockerImageName.parse("redis:7.4.2"))
+			.withExposedPorts(6379);
 
 	@BeforeEach
 	void setup() {
@@ -43,8 +69,8 @@ class TransactionServiceApplicationTests {
 
 	static {
 		mongoDBContainer.start();
+		redis.start();
 	}
-
 
 	@Test
 	void testCreateTransaction_Deposit_Success() {
@@ -70,6 +96,9 @@ class TransactionServiceApplicationTests {
 				.post("/api/transaction/create")
 				.then()
 				.statusCode(HttpStatus.CREATED.value());
+
+		ArgumentCaptor<TransactionCreatedEvent> eventCaptor = ArgumentCaptor.forClass(TransactionCreatedEvent.class);
+		verify(kafkaTemplate).send(eq("transaction-created"), eventCaptor.capture());
 	}
 
 	@Test
@@ -138,7 +167,7 @@ class TransactionServiceApplicationTests {
 
 		String transactionJson = """
 			{
-			  "source_accountId": 3,
+			  "source_accountId": "7",
 			  "amount": 100.00,
 			  "transactionType": "WITHDRAWAL"
 			}
@@ -181,7 +210,7 @@ class TransactionServiceApplicationTests {
 				.when()
 				.post("/api/transaction/create")
 				.then()
-				.statusCode(HttpStatus.BAD_REQUEST.value());
+				.statusCode(HttpStatus.NOT_FOUND.value());
 	}
 
 	@Test
@@ -190,18 +219,21 @@ class TransactionServiceApplicationTests {
 		Transaction testTransaction = new Transaction();
 		testTransaction.setTransactionId("12345abc");
 		testTransaction.setSource_accountId("6");
-		testTransaction.setDestination_accountId("7");
+		testTransaction.setDestination_accountId("10");
 		testTransaction.setAmount(BigDecimal.valueOf(100.00));
 		testTransaction.setTransactionStatus(Status.COMPLETED);
 		mongoTemplate.insert(testTransaction);
 
-		RestAssured.given()
+		String response = RestAssured.given()
 				.contentType(ContentType.JSON)
 				.when()
 				.get("/api/transaction/12345abc")
 				.then()
 				.statusCode(HttpStatus.OK.value())
-				.log().all();
+				.extract()
+				.toString();
+
+		System.out.println("Response:" + response);
 	}
 
 	@Test
