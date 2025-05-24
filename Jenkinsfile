@@ -63,6 +63,7 @@ pipeline {
                     )
                 }
             }
+
             post {
                 always {
                     junit '**/target/surefire-reports/*.xml'
@@ -71,9 +72,9 @@ pipeline {
                         allowMissing: false,
                         alwaysLinkToLastBuild: true,
                         keepAll: true,
-                        reportDir: '**/target/site/jacoco',
+                        reportDir: '**/target/site/coverage',
                         reportFiles: 'index.html',
-                        reportName: 'JaCoCo Coverage Report'
+                        reportName: 'Coverage Report'
                     ])
                 }
             }
