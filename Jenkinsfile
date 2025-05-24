@@ -52,7 +52,7 @@ pipeline {
                 script {
                     withCredentials([string(credentialsId: "${DOCKER_TOKEN_ID}", variable: 'DOCKER_TOKEN')]) {
                         withMaven(maven: 'MAVEN') {
-                            sh "mvn test -pl account-service -DdockerPassword=${DOCKER_TOKEN}"
+                            sh "mvn test -DdockerPassword=${DOCKER_TOKEN}"
                         }
                     }
 
