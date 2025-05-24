@@ -55,12 +55,6 @@ pipeline {
                             sh "mvn test -DdockerPassword=${DOCKER_TOKEN}"
                         }
                     }
-
-                    jacoco(
-                        execPattern: '**/target/jacoco.exec',
-                        classPattern: '**/target/classes',
-                        sourcePattern: '**/src/main/java'
-                    )
                 }
             }
 
