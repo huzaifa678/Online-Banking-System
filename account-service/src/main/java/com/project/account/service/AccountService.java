@@ -10,6 +10,7 @@ import com.project.account.model.entity.Accounts;
 import com.project.account.model.Dto.AccountsDto;
 import com.project.account.model.Mapper.AccountMapper;
 import com.project.account.repository.AccountRepository;
+import com.project.account.validator.AccountValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,59 +39,94 @@ public class AccountService {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-
+    private final AccountValidator accountValidatorChain;
 
     public void addAccount(AccountsDto accountsDto) {
-        System.out.println("received dto: " + accountsDto);
+        log.info("Received DTO: {}", accountsDto);
 
-        if (userClient.doesUserExist(accountsDto.getUserEmail())) {
-            Optional<Accounts> existingAccount = accountRepository
-                    .findByUserEmailAndAccountType(accountsDto.getUserEmail(), accountsDto.getAccountType());
-
-            if (existingAccount.isPresent()) {
-
-                Accounts accounts = existingAccount.get();
-
-                System.out.println("Existing account found: " + accounts);
-
-                switch (accounts.getStatus()) {
-                    case CLOSED:
-                        System.out.println("Account is closed");
-                        throw new ClosedAccountException("Account is closed for User Email: " + accountsDto.getUserEmail() + ". Please create a new account to proceed.");
-
-                    case INACTIVE:
-                        System.out.println("Account is inactive");
-                        accounts.setStatus(Status.ACTIVE);
-                        accountRepository.save(accounts);
-                        break;
-
-                    case ACTIVE:
-                        System.out.println("Account already exists and is active");
-                        throw new DuplicateAccountTypesException("Account type " + accountsDto.getAccountType() + " already exists for User ID: " + accountsDto.getUserEmail());
-
-                    default:
-                        throw new IllegalStateException("Unexpected value: " + accounts.getStatus());
-                }
-
-            } else {
-                Accounts newAccount = accountMapper.ConvertToEntity(accountsDto);
-                newAccount.setStatus(Status.ACTIVE);
-                System.out.println("received entity: " + accountsDto);
-                accountRepository.save(newAccount);
-
-                AccountCreatedEvent accountCreatedEvent = new AccountCreatedEvent();
-                accountCreatedEvent.setAccountId(newAccount.getAccountId());
-                accountCreatedEvent.setUserEmail(newAccount.getUserEmail());
-                log.info("Started sending AccountCreatedEvent {} to kafka topic account-created", accountCreatedEvent);
-                kafkaTemplate.send("account-created", accountCreatedEvent);
-                log.info("Ended sending AccountCreatedEvent {} to kafka topic account-created", accountCreatedEvent);
-            }
-
-        } else {
+        if (!userClient.doesUserExist(accountsDto.getUserEmail())) {
             throw new UserNotFoundException("The User Email " + accountsDto.getUserEmail() + " does not exist");
         }
 
+        Optional<Accounts> existingAccountOpt = accountRepository
+                .findByUserEmailAndAccountType(accountsDto.getUserEmail(), accountsDto.getAccountType());
+
+        if (existingAccountOpt.isPresent()) {
+            Accounts existingAccount = existingAccountOpt.get();
+
+            log.info("Existing account found: {}", existingAccount);
+
+            accountsDto.setStatus(existingAccount.getStatus());
+
+            accountValidatorChain.handle(existingAccount, accountsDto);
+
+        } else {
+            Accounts newAccount = accountMapper.ConvertToEntity(accountsDto);
+            newAccount.setStatus(Status.ACTIVE);
+            accountRepository.save(newAccount);
+
+            AccountCreatedEvent accountCreatedEvent = new AccountCreatedEvent();
+            accountCreatedEvent.setAccountId(newAccount.getAccountId());
+            accountCreatedEvent.setUserEmail(newAccount.getUserEmail());
+            log.info("Started sending AccountCreatedEvent {} to kafka topic account-created", accountCreatedEvent);
+            kafkaTemplate.send("account-created", accountCreatedEvent);
+            log.info("Ended sending AccountCreatedEvent {} to kafka topic account-created", accountCreatedEvent);
+        }
     }
+
+
+
+//    public void addAccount(AccountsDto accountsDto) {
+//        System.out.println("received dto: " + accountsDto);
+//
+//        if (userClient.doesUserExist(accountsDto.getUserEmail())) {
+//            Optional<Accounts> existingAccount = accountRepository
+//                    .findByUserEmailAndAccountType(accountsDto.getUserEmail(), accountsDto.getAccountType());
+//
+//            if (existingAccount.isPresent()) {
+//
+//                Accounts accounts = existingAccount.get();
+//
+//                System.out.println("Existing account found: " + accounts);
+//
+//                switch (accounts.getStatus()) {
+//                    case CLOSED:
+//                        System.out.println("Account is closed");
+//                        throw new ClosedAccountException("Account is closed for User Email: " + accountsDto.getUserEmail() + ". Please create a new account to proceed.");
+//
+//                    case INACTIVE:
+//                        System.out.println("Account is inactive");
+//                        accounts.setStatus(Status.ACTIVE);
+//                        accountRepository.save(accounts);
+//                        break;
+//
+//                    case ACTIVE:
+//                        System.out.println("Account already exists and is active");
+//                        throw new DuplicateAccountTypesException("Account type " + accountsDto.getAccountType() + " already exists for User ID: " + accountsDto.getUserEmail());
+//
+//                    default:
+//                        throw new IllegalStateException("Unexpected value: " + accounts.getStatus());
+//                }
+//
+//            } else {
+//                Accounts newAccount = accountMapper.ConvertToEntity(accountsDto);
+//                newAccount.setStatus(Status.ACTIVE);
+//                System.out.println("received entity: " + accountsDto);
+//                accountRepository.save(newAccount);
+//
+//                AccountCreatedEvent accountCreatedEvent = new AccountCreatedEvent();
+//                accountCreatedEvent.setAccountId(newAccount.getAccountId());
+//                accountCreatedEvent.setUserEmail(newAccount.getUserEmail());
+//                log.info("Started sending AccountCreatedEvent {} to kafka topic account-created", accountCreatedEvent);
+//                kafkaTemplate.send("account-created", accountCreatedEvent);
+//                log.info("Ended sending AccountCreatedEvent {} to kafka topic account-created", accountCreatedEvent);
+//            }
+//
+//        } else {
+//            throw new UserNotFoundException("The User Email " + accountsDto.getUserEmail() + " does not exist");
+//        }
+//
+//    }
 
     public void closeAccount(String id) {
         Optional<Accounts> accountOptional = accountRepository.findById(id);
