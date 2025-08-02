@@ -3,6 +3,7 @@ package com.project.transaction.controller;
 import com.project.transaction.exceptions.AccountClosedException;
 import com.project.transaction.exceptions.AccountNotFoundException;
 import com.project.transaction.exceptions.InsufficientFundsException;
+import com.project.transaction.exceptions.TransactionAmountLimitException;
 import com.project.transaction.exceptions.TransactionFailedException;
 import com.project.transaction.model.dto.TransactionDto;
 import com.project.transaction.service.TransactionService;
@@ -31,6 +32,7 @@ public class TransactionController {
             TransactionDto dto = transactionService.createTransaction(transactionDto);
             return ResponseEntity.status(HttpStatus.CREATED).body(dto.getTransactionId());
         } catch (InsufficientFundsException e) {
+            e.printStackTrace();
             log.error("Insufficient funds error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (AccountNotFoundException e) {
@@ -40,6 +42,9 @@ public class TransactionController {
             log.error("Account closed error: {}", e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (TransactionAmountLimitException e) {
+            log.error("Transaction amount limit error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         } catch (TransactionFailedException e) {
             log.error("Transaction failed error: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());

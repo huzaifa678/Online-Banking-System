@@ -20,18 +20,15 @@ public class DestinationAccountValidator extends TransactionValidator {
     public void validate(TransactionDto transactionDto) {
         TransactionTypes type = transactionDto.getTransactionType();
         
-        // Only validate destination account for DEPOSIT and TRANSFER
         if (type == TransactionTypes.DEPOSIT || type == TransactionTypes.TRANSFER) {
             String destinationAccountId = transactionDto.getDestination_accountId();
             
             log.info("Validating destination account: {}", destinationAccountId);
             
-            // Check if account exists
             if (!accountClient.doesAccountExists(destinationAccountId)) {
                 throw new AccountNotFoundException("The destination Account with ID: " + destinationAccountId + " does not exist");
             }
             
-            // Check if account is closed
             if (accountClient.isAccountClosed(destinationAccountId)) {
                 throw new AccountClosedException("The destination Account with ID: " + destinationAccountId + " is closed");
             }
@@ -39,7 +36,6 @@ public class DestinationAccountValidator extends TransactionValidator {
             log.info("Destination account validation passed for account: {}", destinationAccountId);
         }
         
-        // Continue to next validator
         validateNext(transactionDto);
     }
 } 

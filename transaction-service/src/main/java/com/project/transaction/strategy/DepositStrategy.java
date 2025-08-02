@@ -23,7 +23,6 @@ public class DepositStrategy implements TransactionStrategy {
         
         log.info("Executing deposit strategy for account: {} with amount: {}", destinationAccountId, amount);
         
-        // For deposit, we credit the destination account
         accountClient.creditAccountBalance(amount, destinationAccountId);
         
         log.info("Deposit completed successfully for account: {}", destinationAccountId);
