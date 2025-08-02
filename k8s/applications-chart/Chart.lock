@@ -1,0 +1,6 @@
+dependencies:
+- name: infra
+  repository: file://../infrastructure-chart
+  version: 0.1.0
+digest: sha256:9f410d08b2e6715e5083151b4e602e9573981decbb2a1fbcf8d5e72b4c16b447
+generated: "2025-08-02T14:27:38.583128+05:00"
