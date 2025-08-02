@@ -29,19 +29,14 @@ public class TransactionProcessor {
         log.info("Starting transaction processing for transaction: {}", transactionDto.getTransactionId());
         
         try {
-            // Step 1: Set initial status
             transactionDto.setTransactionStatus(Status.PENDING);
             
-            // Step 2: Validate transaction
             validateTransaction(transactionDto);
             
-            // Step 3: Execute transaction
             executeTransaction(transactionDto);
             
-            // Step 4: Persist transaction
             Transaction savedTransaction = persistTransaction(transactionDto);
             
-            // Step 5: Publish event
             publishTransactionEvent(savedTransaction);
             
             log.info("Transaction processing completed successfully for transaction: {}", transactionDto.getTransactionId());

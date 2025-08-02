@@ -23,7 +23,6 @@ public class WithdrawalStrategy implements TransactionStrategy {
         
         log.info("Executing withdrawal strategy for account: {} with amount: {}", sourceAccountId, amount);
         
-        // For withdrawal, we debit the source account
         accountClient.debitAccountBalance(amount, sourceAccountId);
         
         log.info("Withdrawal completed successfully for account: {}", sourceAccountId);

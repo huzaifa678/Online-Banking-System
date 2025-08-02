@@ -21,23 +21,19 @@ public class SourceAccountValidator extends TransactionValidator {
     public void validate(TransactionDto transactionDto) {
         TransactionTypes type = transactionDto.getTransactionType();
         
-        // Only validate source account for WITHDRAWAL and TRANSFER
         if (type == TransactionTypes.WITHDRAWAL || type == TransactionTypes.TRANSFER) {
             String sourceAccountId = transactionDto.getSource_accountId();
             
             log.info("Validating source account: {}", sourceAccountId);
             
-            // Check if account exists
             if (!accountClient.doesAccountExists(sourceAccountId)) {
                 throw new AccountNotFoundException("The source Account with ID: " + sourceAccountId + " does not exist");
             }
             
-            // Check if account has sufficient balance
             if (!accountClient.accountBalance(sourceAccountId, transactionDto.getAmount())) {
                 throw new InsufficientFundsException("You do not have enough balance to make the transaction");
             }
             
-            // Check if account is closed
             if (accountClient.isAccountClosed(sourceAccountId)) {
                 throw new AccountClosedException("The source Account with ID: " + sourceAccountId + " is closed");
             }
@@ -45,7 +41,6 @@ public class SourceAccountValidator extends TransactionValidator {
             log.info("Source account validation passed for account: {}", sourceAccountId);
         }
         
-        // Continue to next validator
         validateNext(transactionDto);
     }
 } 

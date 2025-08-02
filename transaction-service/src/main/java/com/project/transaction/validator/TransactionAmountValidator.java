@@ -11,8 +11,8 @@ import java.math.BigDecimal;
 @Component
 public class TransactionAmountValidator extends TransactionValidator {
     
-    private static final BigDecimal MAX_TRANSACTION_AMOUNT = new BigDecimal("1000000"); // 1 million
-    private static final BigDecimal MIN_TRANSACTION_AMOUNT = new BigDecimal("1"); // 1 dollar
+    private static final BigDecimal MAX_TRANSACTION_AMOUNT = new BigDecimal("1000000");
+    private static final BigDecimal MIN_TRANSACTION_AMOUNT = new BigDecimal("1");
     
     @Override
     public void validate(TransactionDto transactionDto) {
@@ -30,7 +30,6 @@ public class TransactionAmountValidator extends TransactionValidator {
         
         log.info("Transaction amount validation passed: {}", amount);
         
-        // Continue to next validator
         validateNext(transactionDto);
     }
 } 
