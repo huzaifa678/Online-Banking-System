@@ -15,7 +15,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PaymentController {
 
-    @Autowired
     private final PaymentService paymentService;
 
     @PostMapping("/create")

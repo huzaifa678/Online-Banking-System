@@ -21,8 +21,7 @@ public class KeyCloakService {
     @Value("${app.config.keycloak.realm}")
     private String keyCloakRealm;
 
-    @Autowired
-    private Keycloak keycloak;
+    private final Keycloak keycloak;
 
     public void keycloakAddUser(UsersDto dto) {
 

@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class TransactionController {
 
-    @Autowired
     private final TransactionService transactionService;
 
     private static final Logger log = LoggerFactory.getLogger(TransactionController.class);
