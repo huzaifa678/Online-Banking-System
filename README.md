@@ -13,14 +13,15 @@ The project is built using the following technologies:
 - **Frontend**: Next.js
 - **Databases**: PostgreSQL, MySQL, and MongoDB
 - **Containerization**: Docker
-- **Orchestration**: Kubernetes (k8s)
+- **Orchestration**: Kubernetes (k8s), Helm 
 - **Monitoring & Metrics**: Grafana stack for monitoring, metrics, and distributed tracing
 
 ## Features
 
 - **Microservices Architecture**: Each service is independently deployable and scalable.
 - **Containerization**: Docker is used to create container images and manage their lifecycle.
-- **Orchestration**: Kubernetes is utilized for deploying and orchestrating the containers, ensuring high availability and scalability.
+- **Orchestration**: Kubernetes is utilized for deploying and orchestrating the containers, ensuring high availability and scalability with the
+manifest files packaged inside the helm chart.
 - **Monitoring and Tracing**: The Grafana stack is integrated for real-time monitoring, metrics, and distributed tracing to ensure system health and performance.
 
 ## Getting Started
@@ -31,6 +32,7 @@ Make sure you have the following installed:
 
 - Docker
 - Kubernetes
+- Helm
 - Java (JDK 11 or higher)
 - Node.js
 - PostgreSQL, MySQL, and MongoDB
