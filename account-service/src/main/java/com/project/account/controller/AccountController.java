@@ -7,7 +7,6 @@ import com.project.account.model.Dto.AccountsDto;
 import com.project.account.model.Status;
 import com.project.account.service.AccountService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +20,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AccountController {
 
-    @Autowired
     private final AccountService accountService;
 
     @PostMapping("/register")

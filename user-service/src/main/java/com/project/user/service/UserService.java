@@ -9,7 +9,6 @@ import com.project.user.model.Status;
 import com.project.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.keycloak.representations.idm.UserRepresentation;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,14 +19,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
 
-    @Autowired
-    private UserMapper userMapper;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private KeyCloakService keyCloakService;
+    private final KeyCloakService keyCloakService;
 
     public UsersDto addUser(UsersDto usersDto) throws InterruptedException {
         System.out.println("Received DTO: " + usersDto);

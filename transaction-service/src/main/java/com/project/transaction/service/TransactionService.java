@@ -1,12 +1,10 @@
 package com.project.transaction.service;
-import com.project.transaction.exceptions.TransactionFailedException;
 import com.project.transaction.model.document.Transaction;
 import com.project.transaction.model.dto.TransactionDto;
 import com.project.transaction.model.mapper.TransactionMapper;
 import com.project.transaction.processor.TransactionProcessor;
 import com.project.transaction.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -22,10 +20,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class TransactionService {
 
-    @Autowired
     private final TransactionRepository transactionRepository;
 
-    @Autowired
     private final TransactionMapper transactionMapper;
 
     private final TransactionProcessor transactionProcessor;
