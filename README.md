@@ -55,6 +55,19 @@ Make sure you have the following installed:
     kubectl apply -f k8s/
     ```
 
+4. **Deploy with Helm**
+    ```
+    cd k8s/applications-chart
+    Helm upgrade --install online-banking-system ./
+    ```
+
+5. **Port Forwarding Frontend, Keycloak and API gateway**
+    ```
+    cd k8s
+    kubectl port-forward svc/frontend 3001:3000
+    kubectl port-forward svc/keycloak 8081:8080
+    kubectl port-forward svc/api-gateway 9001:9000
+
 4. **Access the application**:
     Open your browser and navigate to `http://127.0.0.1:3000`
 
