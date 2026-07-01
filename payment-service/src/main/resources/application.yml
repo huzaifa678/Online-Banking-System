@@ -105,6 +105,16 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 3
         automaticTransitionFromOpenToHalfOpenEnabled: true
         minimum-number-of-calls: 5
+      paymentGateway:
+        registerHealthIndicator: true
+        event-consumer-buffer-size: 10
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        minimum-number-of-calls: 5
 
   timelimiter:
     instances:
@@ -134,6 +144,9 @@ resilience4j:
         max-attempts: 3
         wait-duration: 2s
       accountClosed:
+        max-attempts: 3
+        wait-duration: 2s
+      paymentGateway:
         max-attempts: 3
         wait-duration: 2s
 

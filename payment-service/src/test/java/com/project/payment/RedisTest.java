@@ -1,8 +1,8 @@
 package com.project.payment;
 
-import com.project.payment.model.Status;
-import com.project.payment.model.document.Payment;
-import com.project.payment.model.paymentMethod;
+import com.project.payment.domain.vo.PaymentStatus;
+import com.project.payment.infrastructure.persistence.PaymentDocument;
+import com.project.payment.domain.vo.PaymentMethod;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,19 +54,19 @@ class RedisTest {
 
     @Test
     void testPaymentSerialization() {
-        Payment payment = new Payment();
+        PaymentDocument payment = new PaymentDocument();
         payment.setPaymentId("test-123");
         payment.setSource_accountId("acc-1");
         payment.setDestination_accountId("acc-2");
         payment.setAmount(new BigDecimal("100.00"));
-        payment.setStatus(Status.COMPLETED);
+        payment.setStatus(PaymentStatus.COMPLETED);
         payment.setPaymentDate(LocalDateTime.now());
-        payment.setPaymentmethod(paymentMethod.CREDIT_CARD);
+        payment.setPaymentmethod(PaymentMethod.CREDIT_CARD);
 
         String key = "payment:" + payment.getPaymentId();
         redisTemplate.opsForValue().set(key, payment);
 
-        Payment retrieved = (Payment) redisTemplate.opsForValue().get(key);
+        PaymentDocument retrieved = (PaymentDocument) redisTemplate.opsForValue().get(key);
 
         assertNotNull(retrieved);
         assertEquals(payment.getPaymentId(), retrieved.getPaymentId());
@@ -79,7 +79,7 @@ class RedisTest {
 
     @Test
     void testPaymentExpiration() {
-        Payment payment = new Payment();
+        PaymentDocument payment = new PaymentDocument();
         payment.setPaymentId("exp-test-123");
         payment.setAmount(new BigDecimal("50.00"));
 
@@ -99,15 +99,15 @@ class RedisTest {
 
     @Test
     void testPaymentListOperations() {
-        Payment p1 = new Payment();
+        PaymentDocument p1 = new PaymentDocument();
         p1.setPaymentId("list-1");
         p1.setAmount(new BigDecimal("100.00"));
-        p1.setStatus(Status.COMPLETED);
+        p1.setStatus(PaymentStatus.COMPLETED);
 
-        Payment p2 = new Payment();
+        PaymentDocument p2 = new PaymentDocument();
         p2.setPaymentId("list-2");
         p2.setAmount(new BigDecimal("200.00"));
-        p2.setStatus(Status.PENDING);
+        p2.setStatus(PaymentStatus.PENDING);
 
         String listKey = "payment:list";
         redisTemplate.opsForList().rightPushAll(listKey, p1, p2);
@@ -119,24 +119,24 @@ class RedisTest {
         assertNotNull(payments);
         assertEquals(2, payments.size());
 
-        Payment first = (Payment) payments.get(0);
+        PaymentDocument first = (PaymentDocument) payments.get(0);
         assertEquals("list-1", first.getPaymentId());
         assertEquals(new BigDecimal("100.00"), first.getAmount());
-        assertEquals(Status.COMPLETED, first.getStatus());
+        assertEquals(PaymentStatus.COMPLETED, first.getStatus());
 
-        Payment second = (Payment) payments.get(1);
+        PaymentDocument second = (PaymentDocument) payments.get(1);
         assertEquals("list-2", second.getPaymentId());
         assertEquals(new BigDecimal("200.00"), second.getAmount());
-        assertEquals(Status.PENDING, second.getStatus());
+        assertEquals(PaymentStatus.PENDING, second.getStatus());
     }
 
     @Test
     void testPaymentHashOperations() {
-        Payment payment = new Payment();
+        PaymentDocument payment = new PaymentDocument();
         payment.setPaymentId("hash-123");
         payment.setAmount(new BigDecimal("150.00"));
-        payment.setStatus(Status.COMPLETED);
-        payment.setPaymentmethod(paymentMethod.CREDIT_CARD);
+        payment.setStatus(PaymentStatus.COMPLETED);
+        payment.setPaymentmethod(PaymentMethod.CREDIT_CARD);
 
         String hashKey = "payment:hash";
         redisTemplate.opsForHash().put(hashKey, payment.getPaymentId(), payment);
@@ -144,7 +144,7 @@ class RedisTest {
         Object retrieved = redisTemplate.opsForHash().get(hashKey, payment.getPaymentId());
         assertNotNull(retrieved);
 
-        Payment retrievedPayment = (Payment) retrieved;
+        PaymentDocument retrievedPayment = (PaymentDocument) retrieved;
         assertEquals(payment.getPaymentId(), retrievedPayment.getPaymentId());
         assertEquals(payment.getAmount(), retrievedPayment.getAmount());
         assertEquals(payment.getStatus(), retrievedPayment.getStatus());
@@ -153,15 +153,15 @@ class RedisTest {
 
     @Test
     void testPaymentCacheOperations() {
-        Payment payment = new Payment();
+        PaymentDocument payment = new PaymentDocument();
         payment.setPaymentId("cache-123");
         payment.setAmount(new BigDecimal("75.00"));
-        payment.setStatus(Status.COMPLETED);
+        payment.setStatus(PaymentStatus.COMPLETED);
 
         String cacheKey = "payments::" + payment.getPaymentId();
         redisTemplate.opsForValue().set(cacheKey, payment);
 
-        Payment cached = (Payment) redisTemplate.opsForValue().get(cacheKey);
+        PaymentDocument cached = (PaymentDocument) redisTemplate.opsForValue().get(cacheKey);
         assertNotNull(cached);
         assertEquals(payment.getPaymentId(), cached.getPaymentId());
         assertEquals(payment.getAmount(), cached.getAmount());

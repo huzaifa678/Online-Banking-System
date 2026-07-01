@@ -3,10 +3,10 @@ package com.project.payment;
 import com.project.payment.Stub.AccountStub;
 import com.project.payment.client.kafkaTest;
 import com.project.payment.event.PaymentCreatedEvent;
-import com.project.payment.model.Status;
-import com.project.payment.model.document.Payment;
-import com.project.payment.model.paymentMethod;
-import com.project.payment.repository.PaymentRepository;
+import com.project.payment.domain.vo.PaymentStatus;
+import com.project.payment.infrastructure.persistence.PaymentDocument;
+import com.project.payment.domain.vo.PaymentMethod;
+import com.project.payment.infrastructure.persistence.PaymentRepository;
 import com.stripe.model.PaymentIntent;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -78,7 +78,7 @@ class PaymentServiceApplicationTests {
 	void setup() {
 		RestAssured.baseURI = "http://localhost";
 		RestAssured.port = port;
-		mongoTemplate.dropCollection(Payment.class);
+		mongoTemplate.dropCollection(PaymentDocument.class);
 		AccountStub.reset();
 	}
 
@@ -100,15 +100,15 @@ class PaymentServiceApplicationTests {
 		System.out.println("Redis container host: " + redis.getHost());
 		System.out.println("Redis container mapped port: " + redis.getFirstMappedPort());
 
-		Payment payment = new Payment();
+		PaymentDocument payment = new PaymentDocument();
 		payment.setSource_accountId("1");
 		payment.setDestination_accountId("2");
 		payment.setAmount(new BigDecimal("100"));
-		payment.setStatus(Status.COMPLETED);
+		payment.setStatus(PaymentStatus.COMPLETED);
 		payment.setPaymentDate(LocalDateTime.now());
 
-		System.out.println("Payment object to save: " + payment);
-		System.out.println("Payment class implements Serializable: " + (payment instanceof java.io.Serializable));
+		System.out.println("PaymentDocument object to save: " + payment);
+		System.out.println("PaymentDocument class implements Serializable: " + (payment instanceof java.io.Serializable));
 
 		try {
 			System.out.println("Key serializer: " + redisTemplate.getKeySerializer().getClass().getName());
@@ -360,30 +360,30 @@ class PaymentServiceApplicationTests {
 
 	@Test
 	void getPaymentById_Success() {
-		mongoTemplate.dropCollection(Payment.class);
+		mongoTemplate.dropCollection(PaymentDocument.class);
 		System.out.println("Cleared payment collection");
 
-		Payment payment = new Payment();
+		PaymentDocument payment = new PaymentDocument();
 		payment.setSource_accountId("1");
 		payment.setDestination_accountId("2");
 		payment.setAmount(new BigDecimal("100"));
-		payment.setStatus(Status.COMPLETED);
+		payment.setStatus(PaymentStatus.COMPLETED);
 		payment.setPaymentDate(LocalDateTime.now());
 
 		System.out.println("Saving payment to MongoDB...");
-		Payment savedPayment = mongoTemplate.save(payment);
+		PaymentDocument savedPayment = mongoTemplate.save(payment);
 		String paymentId = savedPayment.getPaymentId();
 		System.out.println("Saved payment with ID: " + paymentId);
 
-		Payment foundPayment = mongoTemplate.findById(paymentId, Payment.class);
+		PaymentDocument foundPayment = mongoTemplate.findById(paymentId, PaymentDocument.class);
 		System.out.println("Found payment in MongoDB: " + foundPayment);
-		assertNotNull(foundPayment, "Payment should be found in MongoDB");
+		assertNotNull(foundPayment, "PaymentDocument should be found in MongoDB");
 
-		Optional<Payment> persistedPayment = paymentRepository.findById(paymentId);
+		Optional<PaymentDocument> persistedPayment = paymentRepository.findById(paymentId);
 		System.out.println("Found payment through repository: " + persistedPayment);
-		assertTrue(persistedPayment.isPresent(), "Payment should be found through repository");
+		assertTrue(persistedPayment.isPresent(), "PaymentDocument should be found through repository");
 
-		List<Payment> allPayments = mongoTemplate.findAll(Payment.class);
+		List<PaymentDocument> allPayments = mongoTemplate.findAll(PaymentDocument.class);
 		System.out.println("All payments in MongoDB: " + allPayments);
 
 		String requestUrl = "/api/payment/" + paymentId;
@@ -408,7 +408,7 @@ class PaymentServiceApplicationTests {
 	void getPaymentById_PaymentNotFound() {
 		String paymentId = "2";
 
-		Payment payment = new Payment();
+		PaymentDocument payment = new PaymentDocument();
 		payment.setPaymentId("1");
 		payment.setSource_accountId("1");
 		payment.setDestination_accountId("2");
