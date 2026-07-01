@@ -1,8 +1,8 @@
 package com.project.transaction;
 
-import com.project.transaction.model.Status;
-import com.project.transaction.model.TransactionTypes;
-import com.project.transaction.model.document.Transaction;
+import com.project.transaction.domain.vo.TransactionStatus;
+import com.project.transaction.domain.vo.TransactionType;
+import com.project.transaction.infrastructure.persistence.TransactionDocument;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,19 +42,19 @@ class RedisTest {
 
     @Test
     void testTransactionSerialization() {
-        Transaction transaction = new Transaction();
+        TransactionDocument transaction = new TransactionDocument();
         transaction.setTransactionId("test-123");
         transaction.setSource_accountId("acc-1");
         transaction.setDestination_accountId("acc-2");
         transaction.setAmount(new BigDecimal("100.00"));
-        transaction.setTransactionType(TransactionTypes.TRANSFER);
-        transaction.setTransactionStatus(Status.COMPLETED);
+        transaction.setTransactionType(TransactionType.TRANSFER);
+        transaction.setTransactionStatus(TransactionStatus.COMPLETED);
         transaction.setTransactionDate(LocalDateTime.now());
 
         String key = "transaction:" + transaction.getTransactionId();
         redisTemplate.opsForValue().set(key, transaction);
 
-        Transaction retrieved = (Transaction) redisTemplate.opsForValue().get(key);
+        TransactionDocument retrieved = (TransactionDocument) redisTemplate.opsForValue().get(key);
 
         assertNotNull(retrieved);
         assertEquals(transaction.getTransactionId(), retrieved.getTransactionId());
@@ -67,7 +67,7 @@ class RedisTest {
 
     @Test
     void testTransactionExpiration() {
-        Transaction transaction = new Transaction();
+        TransactionDocument transaction = new TransactionDocument();
         transaction.setTransactionId("exp-test-123");
         transaction.setAmount(new BigDecimal("50.00"));
 
@@ -87,11 +87,11 @@ class RedisTest {
 
     @Test
     void testTransactionListOperations() {
-        Transaction t1 = new Transaction();
+        TransactionDocument t1 = new TransactionDocument();
         t1.setTransactionId("list-1");
         t1.setAmount(new BigDecimal("100.00"));
 
-        Transaction t2 = new Transaction();
+        TransactionDocument t2 = new TransactionDocument();
         t2.setTransactionId("list-2");
         t2.setAmount(new BigDecimal("200.00"));
 
@@ -105,18 +105,18 @@ class RedisTest {
         assertNotNull(transactions);
         assertEquals(2, transactions.size());
 
-        Transaction first = (Transaction) transactions.get(0);
+        TransactionDocument first = (TransactionDocument) transactions.get(0);
         assertEquals("list-1", first.getTransactionId());
         assertEquals(new BigDecimal("100.00"), first.getAmount());
 
-        Transaction second = (Transaction) transactions.get(1);
+        TransactionDocument second = (TransactionDocument) transactions.get(1);
         assertEquals("list-2", second.getTransactionId());
         assertEquals(new BigDecimal("200.00"), second.getAmount());
     }
 
     @Test
     void testTransactionHashOperations() {
-        Transaction transaction = new Transaction();
+        TransactionDocument transaction = new TransactionDocument();
         transaction.setTransactionId("hash-123");
         transaction.setAmount(new BigDecimal("150.00"));
 
@@ -126,7 +126,7 @@ class RedisTest {
         Object retrieved = redisTemplate.opsForHash().get(hashKey, transaction.getTransactionId());
         assertNotNull(retrieved);
 
-        Transaction retrievedTransaction = (Transaction) retrieved;
+        TransactionDocument retrievedTransaction = (TransactionDocument) retrieved;
         assertEquals(transaction.getTransactionId(), retrievedTransaction.getTransactionId());
         assertEquals(transaction.getAmount(), retrievedTransaction.getAmount());
     }

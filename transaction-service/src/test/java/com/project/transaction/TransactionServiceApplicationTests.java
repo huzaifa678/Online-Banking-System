@@ -2,8 +2,8 @@ package com.project.transaction;
 
 import com.project.transaction.config.TestKafkaConfig;
 import com.project.transaction.event.TransactionCreatedEvent;
-import com.project.transaction.model.Status;
-import com.project.transaction.model.document.Transaction;
+import com.project.transaction.domain.vo.TransactionStatus;
+import com.project.transaction.infrastructure.persistence.TransactionDocument;
 import com.project.transaction.stub.AccountStub;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -64,7 +64,7 @@ class TransactionServiceApplicationTests {
 	void setup() {
 		RestAssured.baseURI = "http://localhost";
 		RestAssured.port = port;
-		mongoTemplate.dropCollection(Transaction.class);
+		mongoTemplate.dropCollection(TransactionDocument.class);
 	}
 
 	static {
@@ -216,12 +216,12 @@ class TransactionServiceApplicationTests {
 	@Test
 	void testGetTransactionById_Success() {
 
-		Transaction testTransaction = new Transaction();
+		TransactionDocument testTransaction = new TransactionDocument();
 		testTransaction.setTransactionId("12345abc");
 		testTransaction.setSource_accountId("6");
 		testTransaction.setDestination_accountId("10");
 		testTransaction.setAmount(BigDecimal.valueOf(100.00));
-		testTransaction.setTransactionStatus(Status.COMPLETED);
+		testTransaction.setTransactionStatus(TransactionStatus.COMPLETED);
 		mongoTemplate.insert(testTransaction);
 
 		String response = RestAssured.given()
@@ -239,12 +239,12 @@ class TransactionServiceApplicationTests {
 	@Test
 	void testGetTransactionById_TransactionIdNotFound() {
 
-		Transaction testTransaction = new Transaction();
+		TransactionDocument testTransaction = new TransactionDocument();
 		testTransaction.setTransactionId("12345abc");
 		testTransaction.setSource_accountId("6");
 		testTransaction.setDestination_accountId("7");
 		testTransaction.setAmount(BigDecimal.valueOf(100.00));
-		testTransaction.setTransactionStatus(Status.COMPLETED);
+		testTransaction.setTransactionStatus(TransactionStatus.COMPLETED);
 		mongoTemplate.insert(testTransaction);
 
 		RestAssured.given()
